@@ -1,11 +1,15 @@
+using System;
 using System.Collections.Generic;
 using AtomBehaviour;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Managers
 {
     public class SpawnManager : MonoBehaviour
     {
+        public static SpawnManager Instance;
+        
         public GameObject chloridePrefab;
         public GameObject sodiumPrefab;
 
@@ -16,6 +20,11 @@ namespace Managers
         
         public List<Atom> chlorideList = new List<Atom>();
         public List<Atom> sodiumList = new List<Atom>();
+
+        private void Awake()
+        {
+            Instance = this;
+        }
 
         public void AddChloride()
         {
