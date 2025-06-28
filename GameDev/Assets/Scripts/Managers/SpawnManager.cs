@@ -53,7 +53,9 @@ namespace Managers
 
             if (chloride.otherAtom != null)
             {
-                
+                chloride.otherAtom.otherAtom = null;
+                chloride.otherAtom.collider.radius = 0.5f;
+                chloride.otherAtom.collider.offset = Vector2.zero;
             }
             Destroy(chloride.gameObject);
         }
@@ -64,6 +66,16 @@ namespace Managers
             {
                 return;
             }
+            
+            Atom sodium = sodiumList[0];
+            sodiumList.RemoveAt(0);
+
+            if (sodium.otherAtom != null)
+            {
+                sodium.otherAtom.otherAtom = null;
+                sodium.otherAtom.collider.enabled = true;
+            }
+            Destroy(sodium.gameObject);
         }
     }
 }
