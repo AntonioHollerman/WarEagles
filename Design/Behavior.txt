@@ -1,0 +1,26 @@
+* soduim (red Bigger) and chloride (blue Smaller)
+	* user can add how much of each molecule
+	* move around envrionment at random
+	* reacts when touch each other: 75% on collision
+	* Break apart when: 25% of each collision 
+* Temperature
+	* user can change temperature
+	* incresing: make atoms move faster, increases chances of breaking apart, increases chances of reacting
+	* decreasing: make atoms move slower, decrease chances of breaking apart, decreases chances of reacting
+	* range: 
+		* lowest: 273K
+			break chance: 10%
+			reaction chance: 50%
+			speed: 0.5 * normal
+		* middle: 300K
+			break chance: 25%
+			reaction chance: 75%
+			speed: normal
+		* highest: 330K
+			break chance: 40%
+			reaction chance: 90%
+			speed: 1.50 * normal
+* user input
+	* number of atoms
+	* change temperature
+	
