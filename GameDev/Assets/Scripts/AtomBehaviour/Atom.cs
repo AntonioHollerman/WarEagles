@@ -10,6 +10,7 @@ namespace AtomBehaviour
 {
     public class Atom : MonoBehaviour
     {
+        public static Vector3 Center = Vector3.zero;
         public static float BaseSpeed = 5.0f;
         public static float SpeedMultiplier = 1;
         public static float ChanceToBond = 60;
@@ -163,6 +164,19 @@ namespace AtomBehaviour
         
         private void OnCollisionEnter2D(Collision2D other)
         {
+            if (atomName == "Na" && otherAtom != null && Random.Range(0, 100) < ChanceToBreak )
+            {
+                otherAtom.transform.parent = null;
+                otherAtom.transform.position = transform.position +
+                                               Vector3.Normalize(Center - transform.position) * 1.5f;
+
+                otherAtom.collider.enabled = true;
+                otherAtom.otherAtom = null;
+                otherAtom = null;
+                collider.radius = 0.5f;
+                collider.offset = Vector2.zero;
+            }
+            
             Atom workingAtom = other.gameObject.GetComponent<Atom>();
             if (atomName == "Na" && 
                 workingAtom != null && 
@@ -176,8 +190,6 @@ namespace AtomBehaviour
                 workingAtom.otherAtom = this;
                 otherAtom = workingAtom;
                 
-            
-                Vector3 newCenter = Vector3.Normalize(workingAtom.transform.position - transform.position) * 0.35f;
                 collider.radius = 0.85f;
                 collider.offset = new Vector2(0, 0.35f);
             }
