@@ -3,16 +3,23 @@ using System;
 using System.Collections;
 using Enums;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Random = UnityEngine.Random;
 
 namespace AtomBehaviour
 {
-    public class Molecule : MonoBehaviour
+    public class Atom : MonoBehaviour
     {
         public static float BaseSpeed = 5.0f;
-        public float speedMultiplier;
-        
-        private Rigidbody2D _rb;
+        public static float SpeedMultiplier = 1;
+        public static float ChanceToBond = 60;
+        public static float ChanceToBreak = 25;
+
+        public string atomName;
+        public Atom otherAtom;
+
+        public CircleCollider2D collider;
+        public Rigidbody2D rb;
         private float _dirInDegrees;
 
         /// <summary>
@@ -156,6 +163,24 @@ namespace AtomBehaviour
         
         private void OnCollisionEnter2D(Collision2D other)
         {
+            Atom workingAtom = other.gameObject.GetComponent<Atom>();
+            if (atomName == "Na" && 
+                workingAtom != null && 
+                workingAtom.atomName == "Cl" && 
+                Random.Range(0, 100) < ChanceToBond && 
+                otherAtom == null && workingAtom.otherAtom == null)
+            {
+                workingAtom.collider.enabled = false;
+                
+                workingAtom.transform.parent = transform;
+                workingAtom.otherAtom = this;
+                otherAtom = workingAtom;
+                
+            
+                Vector3 newCenter = Vector3.Normalize(workingAtom.transform.position - transform.position) * 0.35f;
+                collider.radius = 0.85f;
+                collider.offset = new Vector2(0, 0.35f);
+            }
             ChangeDirection(other);
             StartCoroutine(CollisionCheck(other));
         }
@@ -272,13 +297,21 @@ namespace AtomBehaviour
         private void Awake()
         {
             _dirInDegrees = Random.Range(0f, 360f); 
-            _rb = GetComponent<Rigidbody2D>();
+            rb = GetComponent<Rigidbody2D>();
+            collider = GetComponent<CircleCollider2D>();
         }
 
         private void LateUpdate()
         {
+            if (atomName == "Cl" && otherAtom != null)
+            {
+                rb.velocity = Vector3.zero;
+                transform.localPosition = Vector3.left * 0.7f;
+                return;
+            }
+            
             transform.rotation = Quaternion.LookRotation(DegreesToForward(_dirInDegrees), Vector3.forward);
-            _rb.velocity = BaseSpeed * speedMultiplier * transform.forward ;
+            rb.velocity = BaseSpeed * SpeedMultiplier * transform.forward ;
         }
     }
 }
