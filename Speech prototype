@@ -1,0 +1,294 @@
+from google import genai
+import os
+from gtts import gTTS
+from playsound import playsound
+from fakeyou_login import FakeYouPublicAPI
+import webbrowser
+import requests
+import re
+
+# Initialize FakeYou API
+fakeyou_api = FakeYouPublicAPI()
+
+# Find Walter White voice
+def find_walter_voice():
+    """Find the specific 'Walter White 1' voice from FakeYou, prioritizing today's uploads."""
+    print("🔍 Searching for 'Walter White 1' voice...")
+    try:
+        walter_voices = fakeyou_api.search_voices("Walter White")
+        
+        if not walter_voices:
+            print("❌ No Walter White voices found")
+            return None
+        
+        # First priority: Look for exact match "Walter White 1"
+        for voice in walter_voices:
+            title = voice.get('title', '')
+            if title.strip() == 'Walter White 1':
+                print(f"🎯 Found 'Walter White 1' voice!")
+                return voice.get('model_token')
+        
+        # Second priority: Look for "Walter White 1" (case insensitive)
+        for voice in walter_voices:
+            title = voice.get('title', '').lower()
+            if title.strip() == 'walter white 1':
+                print(f"🎯 Found 'Walter White 1' voice!")
+                return voice.get('model_token')
+        
+        # Third priority: Look for newest Walter White voice (created today)
+        today_voices = []
+        for voice in walter_voices:
+            created_at = voice.get('created_at', '')
+            if '2025-06-28' in created_at:  # Today's date
+                today_voices.append(voice)
+        
+        if today_voices:
+            # Sort by creation time (newest first)
+            today_voices.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+            newest_voice = today_voices[0]
+            print(f"🎯 Using newest Walter White voice from today: '{newest_voice.get('title')}'")
+            return newest_voice.get('model_token')
+        
+        # Fourth priority: Look for titles containing "walter white" and "1"
+        for voice in walter_voices:
+            title = voice.get('title', '').lower()
+            if 'walter white' in title and '1' in title:
+                print(f"🎯 Found Walter White voice with '1': '{voice.get('title')}'")
+                return voice.get('model_token')
+        
+        # Last resort: Use any Walter White voice
+        if walter_voices:
+            selected_voice = walter_voices[0]
+            print(f"🎯 Using available Walter White voice: '{selected_voice.get('title')}'")
+            return selected_voice.get('model_token')
+        
+        print("❌ No suitable Walter White voice found")
+        return None
+        
+    except Exception as e:
+        print(f"❌ Error searching for voices: {e}")
+        return None
+
+# Get Walter's voice token
+walter_voice_token = find_walter_voice()
+
+# Debug voice info
+def debug_voice_info():
+    """Debug function to check voice token validity"""
+    if walter_voice_token:
+        print(f"🔍 Voice token: {walter_voice_token}")
+        print(f"🔍 Token length: {len(walter_voice_token)}")
+    else:
+        print("❌ No voice token available")
+
+debug_voice_info()
+
+client = genai.Client(api_key="AIzaSyCRTqmRL9tYzrGLrw99jGF8zZMj7jutiyo")
+
+heisenberg_personality = """
+You are Walter White from the hit-series Breaking Bad, a brillant but egotistical, prideful, and condescending chemistry teacher who has turned to making meth to make more money in order to fund his cancer treatment. You are currently tutoring a former student who failed your class in the past but now helps you with making meth. You are teaching him basic chemistry in order to improve his understanding and ability to make meth. Respond to question in character (leave out visual expressions).'
+"""
+
+# Function to generate response
+def ask_walter(user_input):
+    full_prompt = f"{heisenberg_personality}\nUser: {user_input}\nWalter:"
+    
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=full_prompt
+    )
+    return response.text
+
+# This function takes text and speaks it out loud using Walter White's voice from FakeYou
+def speak_text(text: str, filename: str = "walter_response.wav"):
+    """
+    Converts text to speech using FakeYou's Walter White voice.
+    """
+    if not text or not text.strip():
+        print("Warning: No text provided to speak.")
+        return
+
+    if not walter_voice_token:
+        print("Error: Walter White voice not available.")
+        return
+
+    try:
+        print("🎭 Converting Walter's response to speech using FakeYou...")
+        print("⏳ This may take 30-60 seconds...")
+        
+        # Clean and prepare text for API
+        clean_text = text.strip()
+        
+        # Truncate text if too long (FakeYou typically limits to 500 characters)
+        if len(clean_text) > 500:
+            clean_text = clean_text[:497] + "..."
+            print(f"⚠️  Text truncated to {len(clean_text)} characters")
+        
+        # Remove non-ASCII characters that might cause issues
+        clean_text = ''.join(char for char in clean_text if ord(char) < 127)
+        
+        # Remove special characters that might cause API issues
+        clean_text = re.sub(r'[^\w\s.,!?-]', '', clean_text)
+        
+        print(f"📝 Processing text: '{clean_text[:50]}...'")
+        
+        # Try the API call with proper error handling
+        try:
+            audio_url = fakeyou_api.text_to_speech(clean_text, walter_voice_token, filename)
+        except requests.exceptions.HTTPError as e:
+            if "400" in str(e):
+                print(f"❌ 400 Client Error - Trying with shorter text...")
+                # Try with first sentence only
+                sentences = clean_text.split('.')
+                if len(sentences) > 1:
+                    short_text = sentences[0] + '.'
+                    print(f"📝 Trying shorter text: '{short_text}'")
+                    audio_url = fakeyou_api.text_to_speech(short_text, walter_voice_token, filename)
+                else:
+                    raise e
+            else:
+                raise e
+        
+        if audio_url:
+            print(f"✅ Walter's voice generated successfully!")
+            print(f"🔗 Audio URL: {audio_url}")
+            
+            # Try to play the audio file if it was downloaded locally by the API
+            if os.path.exists(filename):
+                try:
+                    print("🔊 Playing Walter's voice...")
+                    playsound(filename)
+                    return  # Successfully played, exit function
+                except Exception as e:
+                    print(f"Could not play audio locally: {e}")
+            
+            # Force download the audio file ourselves
+            try:
+                print("📥 Downloading audio file...")
+                
+                # Use multiple download strategies
+                download_success = False
+                
+                # Strategy 1: Try with session cookies and headers
+                try:
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                        'Referer': 'https://fakeyou.com/',
+                        'Accept': 'audio/wav,audio/mpeg,audio/*,*/*',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Connection': 'keep-alive'
+                    }
+                    
+                    # Try to get session cookies from the API object
+                    session = getattr(fakeyou_api, 'session', None)
+                    cookies = None
+                    if session and hasattr(session, 'cookies'):
+                        cookies = session.cookies
+                    
+                    response = requests.get(audio_url, headers=headers, cookies=cookies, timeout=60, stream=True)
+                    
+                    if response.status_code == 200:
+                        # Use a different filename to avoid conflicts
+                        temp_filename = f"walter_temp_{hash(text) % 10000}.wav"
+                        with open(temp_filename, 'wb') as f:
+                            for chunk in response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    f.write(chunk)
+                        
+                        print("🔊 Playing Walter's voice...")
+                        playsound(temp_filename)
+                        download_success = True
+                        
+                        # Clean up temp file
+                        try:
+                            os.remove(temp_filename)
+                        except:
+                            pass
+                            
+                    elif response.status_code == 403:
+                        print("❌ 403 Forbidden - trying alternative download method...")
+                    else:
+                        print(f"❌ Download failed: HTTP {response.status_code}")
+                        
+                except Exception as e:
+                    print(f"Strategy 1 failed: {e}")
+                
+                # Strategy 2: Try with basic requests if first strategy failed
+                if not download_success:
+                    try:
+                        print("📥 Trying alternative download method...")
+                        response = requests.get(audio_url, timeout=60, stream=True)
+                        
+                        if response.status_code == 200:
+                            temp_filename = f"walter_alt_{hash(text) % 10000}.wav"
+                            with open(temp_filename, 'wb') as f:
+                                for chunk in response.iter_content(chunk_size=8192):
+                                    if chunk:
+                                        f.write(chunk)
+                            
+                            print("🔊 Playing Walter's voice...")
+                            playsound(temp_filename)
+                            download_success = True
+                            
+                            # Clean up temp file
+                            try:
+                                os.remove(temp_filename)
+                            except:
+                                pass
+                        else:
+                            print(f"❌ Alternative download failed: HTTP {response.status_code}")
+                            
+                    except Exception as e:
+                        print(f"Strategy 2 failed: {e}")
+                
+                # If all download strategies failed
+                if not download_success:
+                    print("❌ All download methods failed. Audio generation completed but playback unavailable.")
+                    print("💡 The voice was generated successfully but couldn't be played locally.")
+                    
+            except Exception as e:
+                print(f"Failed to download audio: {e}")
+                print("❌ Audio generation completed but playback failed.")
+        else:
+            print("❌ Failed to generate Walter's voice.")
+            
+    except Exception as e:
+        print(f"An error occurred with FakeYou TTS: {e}")
+    finally:
+        # Clean up any remaining temp files
+        for temp_file in [filename, f"walter_temp_{hash(text) % 10000}.wav", f"walter_alt_{hash(text) % 10000}.wav"]:
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
+
+# Main program execution
+if __name__ == "__main__":
+    print("🧪 Walter White AI with FakeYou Voice Synthesis")
+    print("=" * 50)
+    if walter_voice_token:
+        print("✅ Walter White voice loaded successfully!")
+    else:
+        print("⚠️  Walter White voice not found")
+    print("Ask Walter questions about chemistry, or type 'quit' to exit.")
+    print()
+
+    while True:
+        question = input("Ask Walter White a question: ")
+        if question.lower() in ["quit", "exit", "bye"]:
+            farewell = "Hmph. Very well. Remember what I taught you... and stay out of my territory."
+            print(f"\nWalter says:\n{farewell}\n")
+            speak_text(farewell)
+            break
+        
+        if not question.strip():
+            continue
+            
+        answer = ask_walter(question)
+        print(f"\nWalter says:\n{answer}\n")
+        
+        # Ask if user wants to hear it spoken
+        play_audio = input("Play Walter's response? (y/n): ").lower().strip()
+        if play_audio in ['y', 'yes', '']:
+            speak_text(answer)
