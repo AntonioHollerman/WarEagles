@@ -33,6 +33,10 @@ namespace AtomBehaviour
         /// <returns>True if the colliders of the two GameObjects are currently touching; otherwise, false.</returns>
         public static bool IsColliding(GameObject obj1, GameObject obj2)
         {
+            if (obj1 == null || obj2 == null)
+            {
+                return false;
+            }
             // 1. Get Colliders from both GameObjects.
             // TryGetComponent is generally safer as it doesn't throw an error if the component is missing.
             if (!obj1.TryGetComponent<Collider2D>(out Collider2D collider1))
