@@ -1,11 +1,16 @@
+using System;
 using System.Collections.Generic;
 using AtomBehaviour;
+using TMPro;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Managers
 {
     public class SpawnManager : MonoBehaviour
     {
+        public static SpawnManager Instance;
+        
         public GameObject chloridePrefab;
         public GameObject sodiumPrefab;
 
@@ -16,6 +21,14 @@ namespace Managers
         
         public List<Atom> chlorideList = new List<Atom>();
         public List<Atom> sodiumList = new List<Atom>();
+
+        public TextMeshProUGUI clCount;
+        public TextMeshProUGUI naCount;
+
+        private void Awake()
+        {
+            Instance = this;
+        }
 
         public void AddChloride()
         {
@@ -53,7 +66,9 @@ namespace Managers
 
             if (chloride.otherAtom != null)
             {
-                
+                chloride.otherAtom.otherAtom = null;
+                chloride.otherAtom.collider.radius = 0.5f;
+                chloride.otherAtom.collider.offset = Vector2.zero;
             }
             Destroy(chloride.gameObject);
         }
@@ -64,6 +79,35 @@ namespace Managers
             {
                 return;
             }
+            
+            Atom sodium = sodiumList[0];
+            sodiumList.RemoveAt(0);
+
+            if (sodium.otherAtom != null)
+            {
+                sodium.otherAtom.otherAtom = null;
+                sodium.otherAtom.collider.enabled = true;
+            }
+            Destroy(sodium.gameObject);
+        }
+
+        public void ClearContainer()
+        {
+            foreach (Atom a in chlorideList)
+            {
+                Destroy(a.gameObject);
+            }
+            
+            foreach (Atom a in sodiumList)
+            {
+                Destroy(a.gameObject);
+            }
+            
+            chlorideList.RemoveAll(o => true);
+            sodiumList.RemoveAll(o => true);
+
+            clCount.text = "0";
+            naCount.text = "0";
         }
     }
 }
